@@ -5,18 +5,24 @@ This is an [Expo](https://expo.dev) project created with [
 
 ## Get started
 
-1. Install dependencies
+Install dependencies
 
-   ```bash
-   npm install
-   ```
+```bash
+npm install
+```
 
-2. Create .env file
+Copy `.env.template` to `.env` and fill in the required environment variables.
 
-   Copy `.env.template` to `.env` and fill in the required environment variables.
+Prebuild the app
 
-2. Start the app
+ ```bash
+ npm run prebuild
+ ```
 
-   ```bash
-   npx expo start
-   ```
+Build the app with Android Studio / Xcode
+
+Start the app
+
+```bash
+npx run start
+```
