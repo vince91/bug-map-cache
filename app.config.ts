@@ -13,7 +13,6 @@ export default ({config}: ConfigContext): ExpoConfig => ({
   "icon": "./assets/images/icon.png",
   "scheme": "bugmapandroidexpo",
   "userInterfaceStyle": "automatic",
-  "newArchEnabled": true,
   "ios": {
     "supportsTablet": true,
     "bundleIdentifier": "com.example.bugmapandroidexpo"
@@ -26,7 +25,6 @@ export default ({config}: ConfigContext): ExpoConfig => ({
       "backgroundImage": "./assets/images/android-icon-background.png",
       "monochromeImage": "./assets/images/android-icon-monochrome.png"
     },
-    "edgeToEdgeEnabled": true,
     "predictiveBackGestureEnabled": false
   },
   "web": {
@@ -35,6 +33,9 @@ export default ({config}: ConfigContext): ExpoConfig => ({
   },
   "plugins": [
     "expo-router",
+    "expo-font",
+    "expo-image",
+    "expo-web-browser",
     [
       "expo-splash-screen",
       {
@@ -51,7 +52,7 @@ export default ({config}: ConfigContext): ExpoConfig => ({
       'expo-build-properties',
       {
         ios: {
-          deploymentTarget: '15.6'
+          deploymentTarget: '16.4'
         },
       },
     ],

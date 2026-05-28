@@ -62,14 +62,13 @@ export default function MapScreen() {
   }, []);
 
   return (
-    <GestureHandlerRootView style={{flex: 1, backgroundColor: "red"}} onLayout={(event) => {
+    <GestureHandlerRootView style={{flex: 1}} onLayout={(event) => {
       const {width, height} = event.nativeEvent.layout;
       setWidth(width);
       setHeight(height);
     }}>
 
       {width && height && <MapView style={{
-        backgroundColor: "blue",
         width: width,
         height: height,
         flex: 1,
