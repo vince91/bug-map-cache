@@ -1,11 +1,8 @@
-import {Stack} from 'expo-router';
+import { Stack } from 'expo-router';
 import 'react-native-reanimated';
 
+// One screen, no tabs, no nesting. The map is the entry point so nothing about
+// navigation can influence the reproduction.
 export default function RootLayout() {
-  return (
-    <Stack>
-      <Stack.Screen name="index" options={{headerShown: true, title: 'Home'}}/>
-      <Stack.Screen name="map" options={{headerShown: true, title: 'Map'}}/>
-    </Stack>
-  );
+  return <Stack screenOptions={{ headerShown: false }} />;
 }
