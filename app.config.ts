@@ -53,7 +53,21 @@ export default ({config}: ConfigContext): ExpoConfig => ({
       'expo-build-properties',
       {
         ios: {
-          deploymentTarget: '16.4'
+          deploymentTarget: '16.4',
+          // The iOS 27 SDK hard-requires UIKit scene adoption: without it the
+          // app builds but refuses to launch, which would look like a crash
+          // for the wrong reason. Needs expo >= 57.0.23.
+          enableSceneSupport: true,
+          // Below: match my-clubmed-app's iOS linkage. Without these the repro
+          // renders fine on iOS 27, so they are the variable under test.
+          // `staticPods: true` on the MapsIndoors plugin forces the seven
+          // Mapbox pods back to dynamic, so `static` here puts a C++ library on
+          // both sides of a static/dynamic boundary. usePrecompiledModules must
+          // be false alongside it: SDK 57's own pre_install hook re-downgrades
+          // xcframework pods to static and fails `pod install` under
+          // useFrameworks: 'static'.
+          useFrameworks: 'static',
+          usePrecompiledModules: false
         },
       },
     ],
