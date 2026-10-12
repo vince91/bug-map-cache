@@ -1,18 +1,11 @@
 import { Stack } from 'expo-router';
 import 'react-native-reanimated';
 
-/**
- * Stock Expo Router stack — default headers, default back button.
- *
- * Nothing custom on purpose: the back button is the one react-navigation's
- * native stack puts in the header, so popping goes through the same UIKit path
- * a normal app uses rather than a hand-rolled `router.back()`.
- */
+/** The map is the first and only screen. */
 export default function RootLayout() {
   return (
     <Stack>
-      <Stack.Screen name="index" options={{ title: 'Home' }} />
-      <Stack.Screen name="map" options={{ title: 'Map' }} />
+      <Stack.Screen name="index" options={{ title: 'MPAC' }} />
     </Stack>
   );
 }
