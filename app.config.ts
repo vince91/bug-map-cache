@@ -52,8 +52,19 @@ export default ({config}: ConfigContext): ExpoConfig => ({
     [
       'expo-build-properties',
       {
+        // Same native settings as my-clubmed-app (minus its RNFB forceStaticLinking list)
+        android: {
+          minSdkVersion: 29
+        },
         ios: {
-          deploymentTarget: '16.4'
+          useFrameworks: 'static',
+          deploymentTarget: '16.4',
+          // Precompiled Expo modules (default since expo-build-properties 57.0.22) drop
+          // use_frameworks for Mapbox, whose static binaries require it.
+          usePrecompiledModules: false,
+          // The iOS 27 SDK (Xcode 27) refuses to launch apps without the UIKit
+          // scene lifecycle. Opt-in on SDK 57, default from SDK 58: remove then.
+          enableSceneSupport: true
         },
       },
     ],
