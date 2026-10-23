@@ -8,7 +8,9 @@ import MapsIndoors, {
   MPFilter,
   MPLocation,
   MPMapConfig,
-  MPQuery
+  type MPPositionProviderInterface,
+  MPQuery,
+  type OnPositionUpdateListener
 } from "@mapsindoors/react-native-maps-indoors-mapbox";
 import {GestureHandlerRootView} from "react-native-gesture-handler";
 import {useEffect, useState} from "react";
@@ -59,6 +61,30 @@ async function hideLocations(locations: MPLocation[]) {
     const locationDisplayRule = await MapsIndoors.getDisplayRuleByLocation(location);
 
     await locationDisplayRule?.setVisible(false);
+  }
+}
+
+// my-clubmed-app registers a position provider on every map mount (usePositionProvider) and
+// never unregisters it. On iOS the bridge backs it with a native ReactPositionProvider, the
+// object behind the per-visit memory growth this branch is about. This one never emits a
+// position: registering it is enough.
+class SilentPositionProvider implements MPPositionProviderInterface {
+  private listeners = new Set<OnPositionUpdateListener>();
+
+  addOnPositionUpdateListener(listener: OnPositionUpdateListener) {
+    this.listeners.add(listener);
+  }
+
+  removeOnPositionUpdateListener(listener: OnPositionUpdateListener) {
+    this.listeners.delete(listener);
+  }
+
+  getLatestPosition() {
+    return undefined;
+  }
+
+  get name() {
+    return 'repro';
   }
 }
 
@@ -123,6 +149,9 @@ export default function MapScreen() {
         showUserPosition: true,
         mapsIndoorsTransitionLevel: 0
       }), NativeEventEmitter);
+
+      console.log('Setting the position provider...');
+      await MapsIndoors.setPositionProvider(new SilentPositionProvider());
 
       console.log('Moving to venue...');
       const venue = (await MapsIndoors.getVenues()).getAll()[0];
