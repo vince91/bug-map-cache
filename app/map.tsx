@@ -121,7 +121,11 @@ export default function MapScreen() {
       const mapControl = await MapControl.create(new MPMapConfig({
         useDefaultMapsIndoorsStyle: true,
         showUserPosition: true,
-        mapsIndoorsTransitionLevel: 0
+        mapsIndoorsTransitionLevel: 0,
+        // Android: the SDK's default floor selector adds a layout listener to the window that it
+        // never removes, which keeps its MapView alive. Not creating it is the only way around
+        // that, and the map hides it right away anyway.
+        showFloorSelector: false
       }), NativeEventEmitter);
 
       console.log('Moving to venue...');
