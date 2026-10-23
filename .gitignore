@@ -44,3 +44,7 @@ app-example
 
 .idea/
 .env
+
+# native build output of the local Expo modules
+modules/*/android/build/
+modules/*/android/.cxx/

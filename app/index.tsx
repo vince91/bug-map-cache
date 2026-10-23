@@ -1,142 +1,102 @@
-import {ActivityIndicator, Alert, Button, Text, View} from 'react-native';
-import MapsIndoors, {MPError} from "@mapsindoors/react-native-maps-indoors-mapbox";
-import {useRouter} from "expo-router";
-import {useEffect, useRef, useState} from "react";
+import {Button, StyleSheet, Text, View} from 'react-native';
+import {useFocusEffect, useRouter} from "expo-router";
+import {useCallback, useEffect, useRef, useState} from "react";
 
-// MapsIndoors.cacheData() never rejects, and on both platforms it can hang forever
-// (iOS: the delegate is assigned to a weak property and deallocated immediately;
-// Android: the sync listener NPEs on a null solutionId). Give up rather than hang.
-const CACHE_TIMEOUT_MS = 120_000;
+import {getUsedMemoryAsync} from "../modules/app-memory";
 
-// The base-map download is documented as taking minutes, so it gets a longer budget.
-// A timeout only stops the wait: the native download keeps going.
-const BASE_MAP_TIMEOUT_MS = 600_000;
+// Back from the map, the native side needs a moment to release what it is going to release:
+// measure once it has settled rather than while the map is still being torn down.
+const SETTLE_MS = 3000;
 
-type StepOutcome = {ok: boolean; detail: string};
-type StepReport = StepOutcome & {label: string; seconds: string};
+const toMegabytes = (bytes: number) => bytes / 1024 / 1024;
 
-async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
+function formatMegabytes(megabytes: number | null): string {
+  return megabytes === null ? "measuring…" : `${megabytes.toFixed(1)} MB`;
+}
 
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(
-      () => reject(new Error(`The native promise never settled (waited ${ms / 1000}s).`)),
-      ms
-    );
-  });
-
-  try {
-    return await Promise.race([promise, timeout]);
-  } finally {
-    clearTimeout(timer);
-  }
+async function measureMegabytes(): Promise<number> {
+  return toMegabytes(await getUsedMemoryAsync());
 }
 
 function describeError(e: unknown): string {
-  if (e instanceof MPError) {
-    return `MapsIndoors error ${e.code}: ${e.message}`;
-  }
-
   return e instanceof Error ? e.message : String(e);
 }
 
-export default function MapScreen() {
+export default function HomeScreen() {
   const router = useRouter();
-  const [step, setStep] = useState<string | null>(null);
-  const [elapsed, setElapsed] = useState(0);
-  const [progress, setProgress] = useState<number | null>(null);
-  const startedAt = useRef(0);
-  const loading = step !== null;
+  const [iterations, setIterations] = useState(0);
+  const [initialMemory, setInitialMemory] = useState<number | null>(null);
+  const [currentMemory, setCurrentMemory] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const openedMap = useRef(false);
 
-  // Tick while loading so a hung promise is visible instead of looking idle.
+  // The baseline: memory when the app opens, before any map has been mounted.
   useEffect(() => {
-    if (!loading) {
-      return;
-    }
-
-    const interval = setInterval(() => {
-      setElapsed((Date.now() - startedAt.current) / 1000);
-    }, 100);
-
-    return () => clearInterval(interval);
-  }, [loading]);
-
-  // Times one cache step and turns a failure into its report, so the next step still runs.
-  const runStep = async (label: string, run: () => Promise<StepOutcome>): Promise<StepReport> => {
-    startedAt.current = Date.now();
-    setElapsed(0);
-    setProgress(null);
-    setStep(label);
-
-    const seconds = () => ((Date.now() - startedAt.current) / 1000).toFixed(1);
-
-    try {
-      const outcome = await run();
-      return {label, ...outcome, seconds: seconds()};
-    } catch (e) {
-      return {label, ok: false, detail: describeError(e), seconds: seconds()};
-    }
-  }
-
-  const handleMapCacheLoad = async () => {
-    const apiKey = process.env.EXPO_PUBLIC_MAPSINDOORS_API_KEY;
-
-    if (!apiKey) {
-      Alert.alert("No API key found");
-      return;
-    }
-
-    const content = await runStep("MapsIndoors data", async () => {
-      const cached = await withTimeout(MapsIndoors.cacheData(apiKey), CACHE_TIMEOUT_MS);
-
-      // cacheData resolves false when MapsIndoors reports the sync as failed.
-      return {ok: cached, detail: `Resolved ${cached}`};
-    });
-
-    // The Mapbox tiles under the venue, which cacheData does not cover. On iOS this rejects
-    // with error 9000 until a MapView has been mounted once in this app process.
-    const baseMap = await runStep("Base map tiles", async () => {
-      await MapsIndoors.setBaseMapTilesEnabled(true, apiKey);
-      await withTimeout(
-        MapsIndoors.synchronizeBaseMapTiles(fraction => setProgress(fraction), [apiKey]),
-        BASE_MAP_TIMEOUT_MS
-      );
-
-      return {ok: true, detail: "Downloaded"};
-    });
-
-    setStep(null);
-
-    const reports = [content, baseMap];
-
-    Alert.alert(
-      reports.every(report => report.ok) ? "Map cache loaded successfully" : "Map cache incomplete",
-      reports
-        .map(report => `${report.label}: ${report.ok ? "OK" : "FAILED"} after ${report.seconds}s\n${report.detail}`)
-        .join("\n\n")
+    measureMegabytes().then(
+      megabytes => {
+        setInitialMemory(megabytes);
+        setCurrentMemory(megabytes);
+      },
+      e => setError(describeError(e))
     );
-  }
+  }, []);
+
+  // Every return from the map is one iteration.
+  useFocusEffect(useCallback(() => {
+    if (!openedMap.current) {
+      return;
+    }
+
+    openedMap.current = false;
+    setIterations(count => count + 1);
+    setCurrentMemory(null);
+
+    const timer = setTimeout(() => {
+      measureMegabytes().then(setCurrentMemory, e => setError(describeError(e)));
+    }, SETTLE_MS);
+
+    return () => clearTimeout(timer);
+  }, []));
 
   const handleGoToMap = () => {
-    router.navigate("/map")
-  }
+    openedMap.current = true;
+    router.navigate("/map");
+  };
+
+  const addedPerIteration =
+    iterations > 0 && initialMemory !== null && currentMemory !== null
+      ? (currentMemory - initialMemory) / iterations
+      : null;
 
   return (
-    <View style={{padding: 50, gap: 20}}>
-      <Button title="1. Load map cache" onPress={handleMapCacheLoad} disabled={loading}/>
+    <View style={styles.container}>
+      <Button title="Go to map" onPress={handleGoToMap}/>
 
-      {loading && (
-        <View style={{flexDirection: 'row', alignItems: 'center', gap: 10}}>
-          <ActivityIndicator/>
-          <Text>
-            {step}… {elapsed.toFixed(1)}s{progress !== null && ` (${Math.round(progress * 100)}%)`}
-          </Text>
-        </View>
-      )}
-
-      <Text>2. Disable network for this device</Text>
-      <Button title="3.Go to map" onPress={handleGoToMap}/>
+      <View style={styles.stats}>
+        <Text style={styles.stat}>Iterations (map and back): {iterations}</Text>
+        <Text style={styles.stat}>Initial memory at open: {formatMegabytes(initialMemory)}</Text>
+        <Text style={styles.stat}>Current memory: {formatMegabytes(currentMemory)}</Text>
+        <Text style={styles.stat}>
+          Average added per iteration: {iterations > 0 ? formatMegabytes(addedPerIteration) : "-"}
+        </Text>
+        {error && <Text style={styles.error}>Memory reading failed: {error}</Text>}
+      </View>
     </View>
-
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    padding: 50,
+    gap: 30,
+  },
+  stats: {
+    gap: 10,
+  },
+  stat: {
+    fontSize: 16,
+  },
+  error: {
+    color: '#D32F2F',
+  },
+});
