@@ -1,0 +1,28 @@
+diff --git a/node_modules/@mapsindoors/react-native-maps-indoors-mapbox/ios/core/ReactPositionProvider.swift b/node_modules/@mapsindoors/react-native-maps-indoors-mapbox/ios/core/ReactPositionProvider.swift
+index 60d2670..29d63bc 100644
+--- a/node_modules/@mapsindoors/react-native-maps-indoors-mapbox/ios/core/ReactPositionProvider.swift
++++ b/node_modules/@mapsindoors/react-native-maps-indoors-mapbox/ios/core/ReactPositionProvider.swift
+@@ -5,17 +5,16 @@ public class ReactPositionProvider: MPPositionProvider {
+     public var latestPosition: MapsIndoors.MPPositionResult?
+ 
+     public var name = "default"
+-    public var delegate: MapsIndoors.MPPositionProviderDelegate?
+-    private var mapsIndoorsData: MapsIndoorsData
+-
+-    init() {
+-        mapsIndoorsData = MapsIndoorsData.sharedInstance
+-    }
++    // Weak: the map control that sets itself as delegate holds this provider strongly
++    // (MPMapControlInternal.positionProvider), so a strong reference back kept both alive.
++    public weak var delegate: MapsIndoors.MPPositionProviderDelegate?
+ 
+     public func setLatestPosition(positionResult: MPPositionResult) {
+         DispatchQueue.main.async {
+             if self.latestPosition?.floorIndex != positionResult.floorIndex {
+-                let floorSelector = self.mapsIndoorsData.floorSelector
++                // Read at call time: keeping the instance from init closed the cycle
++                // MapsIndoorsData -> MapBoxView -> MPMapControl -> this provider -> MapsIndoorsData.
++                let floorSelector = MapsIndoorsData.sharedInstance.floorSelector
+                 floorSelector?.onUserPositionFloorChange(floorIndex: positionResult.floorIndex)
+             }
+ 

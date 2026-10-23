@@ -6,7 +6,8 @@
     "start": "expo start",
     "prebuild": "expo prebuild --clean",
     "android": "expo run:android",
-    "ios": "expo run:ios"
+    "ios": "expo run:ios",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
@@ -40,6 +41,7 @@
     "@types/react": "~19.2.10",
     "eslint": "^9.39.5",
     "eslint-config-expo": "^57.0.2",
+    "patch-package": "^8.0.1",
     "typescript": "~6.0.3"
   },
   "private": true
